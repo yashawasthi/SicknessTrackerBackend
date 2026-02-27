@@ -2,7 +2,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import express from 'express';
 import path from 'path';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 import { connectDB } from './config/db.js';
 import authRoutes from './routes/auth.js';
 import entryRoutes from './routes/entries.js';
@@ -14,14 +14,8 @@ dotenv.config({ path: path.resolve(__dirname, '.env') });
 
 const app = express();
 const port = process.env.PORT || 5001;
-const isVercel = Boolean(process.env.VERCEL);
 let dbConnectPromise = null;
-
-const configuredOrigins = (process.env.CLIENT_ORIGIN || '')
-  .split(',')
-  .map((item) => item.trim())
-  .filter(Boolean);
-const allowedOrigins = new Set(['http://localhost:3000', 'http://localhost:5173', ...configuredOrigins]);
+const allowedOrigins = new Set(['http://localhost:3000', 'http://localhost:3001', 'http://localhost:5173']);
 
 function isAllowedOrigin(origin) {
   if (!origin) return true;
@@ -59,19 +53,17 @@ app.use(
 );
 app.use(express.json());
 
-if (isVercel) {
-  app.use(async (req, res, next) => {
-    if (req.path === '/api/health' || req.path === '/api/heartbeat') return next();
+app.use(async (req, res, next) => {
+  if (req.path === '/api/health' || req.path === '/api/heartbeat') return next();
 
-    try {
-      await ensureDbConnection();
-      next();
-    } catch (error) {
-      console.error('DB connection failed:', error);
-      res.status(500).json({ message: 'Database connection failed.' });
-    }
-  });
-}
+  try {
+    await ensureDbConnection();
+    next();
+  } catch (error) {
+    console.error('DB connection failed:', error);
+    res.status(500).json({ message: 'Database connection failed.' });
+  }
+});
 
 app.get('/api/health', (_req, res) => {
   res.json({ ok: true });
@@ -89,7 +81,7 @@ app.get('/api/heartbeat', (_req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/entries', entryRoutes);
 
-if (!isVercel) {
+if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) {
   ensureDbConnection()
     .then(() => {
       app.listen(port, () => {

@@ -3,9 +3,13 @@ import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 
 function signToken(user) {
+  if (!process.env.JWT_SECRET) {
+    throw new Error('JWT_SECRET is missing in environment variables.');
+  }
+
   return jwt.sign(
     { sub: user._id.toString(), email: user.email, name: user.name },
-    process.env.JWT_SECRET || 'dev-secret',
+    process.env.JWT_SECRET,
     { expiresIn: '30d' }
   );
 }
@@ -45,7 +49,7 @@ export async function login(req, res) {
     }
 
     const user = await User.findOne({ email: String(email).toLowerCase().trim() });
-    if (!user) return res.status(401).json({ message: 'Invalid credentials.' });
+    if (!user) return res.status(404).json({ message: 'User does not exist.' });
 
     const ok = await bcrypt.compare(password, user.passwordHash);
     if (!ok) return res.status(401).json({ message: 'Invalid credentials.' });
