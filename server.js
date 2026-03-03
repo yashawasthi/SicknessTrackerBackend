@@ -15,19 +15,6 @@ dotenv.config({ path: path.resolve(__dirname, '.env') });
 const app = express();
 const port = process.env.PORT || 5001;
 let dbConnectPromise = null;
-const allowedOrigins = new Set(['http://localhost:3000', 'http://localhost:3001', 'http://localhost:5173']);
-
-function isAllowedOrigin(origin) {
-  if (!origin) return true;
-  if (allowedOrigins.has(origin)) return true;
-
-  try {
-    const parsed = new URL(origin);
-    return parsed.protocol === 'https:' && parsed.hostname.endsWith('.vercel.app');
-  } catch {
-    return false;
-  }
-}
 
 function ensureDbConnection() {
   if (!dbConnectPromise) {
@@ -39,15 +26,10 @@ function ensureDbConnection() {
   return dbConnectPromise;
 }
 
+// allow requests from any origin (disable origin filtering)
 app.use(
   cors({
-    origin(origin, callback) {
-      if (isAllowedOrigin(origin)) {
-        callback(null, true);
-        return;
-      }
-      callback(new Error('Not allowed by CORS'));
-    },
+    origin: true,
     credentials: true
   })
 );
